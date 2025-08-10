@@ -13,16 +13,16 @@ read_write_all = "rwa"
 
 bank = "Chime"
 checking = "checking"
-credit = "credit"
+credit_builder_card = "credit builder card"
+credit_builder_secured = "credit builder secured"
 summary = "summary"
 transactions = "transactions"
-secured_transactions = "secured transactions"
 
 checking_transaction_column_names = ["Transaction Date", "Description", "Type", "Amount", "Net Amount", "Settlement Date"]
-credit_transaction_column_names = ["Transaction Date", "Description", "Type", "Amount", "Settlement Date"]
+credit_builder_transaction_column_names = ["Transaction Date", "Description", "Type", "Amount", "Settlement Date"]
 checking_summary_column_names = ["Statement Period", "Beginning Balance", "Deposits", "ATM Withdrawals", "Purchases", "Adjustments", "Transfers", "Round Up Transfers", "Fees", "SpotMe Tips", "Ending Balance"]
-credit_summary_column_names = ["Statement Period", "Last Month's Balance", "Payments/Credits", "New Spending", "Fees", "New Balance", "Payment Due Date", "Total Due"]
-credit_secured_summary_column_names = ["Statement Period", "Beginning Balance", "Deposits", "Transfers", "Ending Balance"]
+credit_builder_summary_column_names = ["Statement Period", "Last Month's Balance", "Payments/Credits", "New Spending", "Fees", "New Balance", "Payment Due Date", "Total Due"]
+credit_builder_secured_summary_column_names = ["Statement Period", "Beginning Balance", "Deposits", "Transfers", "Ending Balance"]
 
 months = {"01": ['1', "01", "jan", "january"],
                "02": ['2', "02", "feb", "february"],
@@ -44,11 +44,16 @@ def rename_columns(df, account, statement):
             df.columns = checking_transaction_column_names
         elif (statement.lower() == summary):
             df.columns = checking_summary_column_names
-    elif (account.lower() == credit):
-        if (statement.lower() == transactions or statement.lower() == secured_transactions):
-            df.columns = credit_transaction_column_names
+    elif (account.lower() == credit_builder_card):
+        if (statement.lower() == transactions):
+            df.columns = credit_builder_transaction_column_names
         elif (statement.lower() == summary):
-            df.columns = credit_summary_column_names
+            df.columns = credit_builder_summary_column_names
+    elif (account.lower() == credit_builder_secured):
+        if (statement.lower() == transactions):
+            df.columns = credit_builder_transaction_column_names
+        elif (statement.lower() == summary):
+            df.columns = credit_builder_secured_summary_column_names
     return df
 
 def create_dataframe(csv_file):
@@ -73,11 +78,11 @@ def correct_tabula_data_extraction_errors(df):
 def format_data(df, account, statement):
     if (statement.lower() == summary):
         for i in range(len(df.columns)):
-            if ((i == 0) or (i == 6 and account.lower() == credit)):
+            if ((i == 0) or (i == 6 and account.lower() == credit_builder_card)):
                 df[df.columns[i]] = df[df.columns[i]].astype('string')
             else:
                 df[df.columns[i]] = pd.to_numeric(df[df.columns[i]].str.replace('$', '').str.replace(',','')).apply(lambda x: Decimal(f"{x:.2f}"))
-    if (statement.lower() == transactions or statement.lower() == secured_transactions):
+    if (statement.lower() == transactions):
         df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], format='%m/%d/%Y')
         df["Description"] = df["Description"].astype('string')
         df["Type"] = df["Type"].astype('string')
@@ -97,9 +102,9 @@ def save_file(df, directory, file):
     print(f"CSV Output File: {csv_file}\n")
 
 def save_combined_file(df, bank, account, statement):
-    directory = f"data/processed/{bank}/{account.capitalize()}/Combined/{statement.title()}"
+    directory = f"data/processed/{bank}/{account.title()}/Combined/{statement.title()}"
     os.makedirs(directory, exist_ok=True)
-    file = (f"{bank} {account.capitalize()} Account {statement.title()}.csv")
+    file = (f"{bank} {account.title()} Account {statement.title()}.csv")
     csv_file = os.path.join(directory, file)
     df.to_csv(csv_file, index=False)
     print(f"Combined CSV Output File: {csv_file}\n")
@@ -118,7 +123,7 @@ def preprocess(csv_file, account, statement):
 def preprocess_statement(year, month, account, statement, option):
     for key, value_list in months.items():
         if str(month).lower() in value_list:
-            csv_directory = (f"data/raw/{bank}/{account.capitalize()}/{year}/{statement.title()}")
+            csv_directory = (f"data/raw/{bank}/{account.title()}/{year}/{statement.title()}")
             file = (f"tabula-{year}-{key}.csv")
             csv_file = os.path.join(csv_directory, file)
             break
@@ -132,7 +137,7 @@ def preprocess_statement(year, month, account, statement, option):
 def preprocess_statements(start_year, end_year, account, statement, option):
     dataframes = []
     for i in range(start_year, end_year + 1):
-        csv_directory = (f"data/raw/{bank}/{account.capitalize()}/{i}/{statement.title()}")
+        csv_directory = (f"data/raw/{bank}/{account.title()}/{i}/{statement.title()}")
         csv_files = [f for f in os.listdir(csv_directory) if f.endswith(".csv")]
         csv_files.sort()
         for file in csv_files:
@@ -152,17 +157,20 @@ def preprocess_statements(start_year, end_year, account, statement, option):
 
 def main():
 
-    df = preprocess_statement(2022, 9, "Checking", "Summary", "r")
-    df = preprocess_statement(2022, "10", "Checking", "Transactions", "r")
-    df = preprocess_statement(2022, "Nov", "Credit", "Secured Transactions", "rw")
-    df = preprocess_statement(2022, "December", "Credit", "Summary", "rw")
-    preprocess_statement(2023, "01", "Credit", "Transactions", "w")
+    df = preprocess_statement(2024, "september", "checking", "summary", 'r')
+    preprocess_statement(2024, "sept", "checking", "transactions", 'w')
+    df = preprocess_statement(2024, "sep", "credit builder card", "summary", "rw")
+    df = preprocess_statement(2024, 9, "credit builder card", "transactions", "rw")
+    df = preprocess_statement(2024, "09", "credit builder secured", "summary", "rw")
+    df = preprocess_statement(2024, "09", "credit builder secured", "transactions", "rw")
+    
 
-    df = preprocess_statements(2022, 2023, "Checking", "Summary", 'r')
-    df = preprocess_statements(2022, 2023, "Checking", "Transactions", 'rw')
-    df = preprocess_statements(2022, 2023, "Credit", "Secured Transactions", 'rwa')
-    preprocess_statements(2022, 2023, "Credit", "Summary", 'w')
-    preprocess_statements(2022, 2023, "Credit", "Transactions", 'wa')
+    df = preprocess_statements(2021, 2025, "checking", "summary", 'r')
+    preprocess_statements(2021, 2025, "checking", "transactions", 'w')
+    df = preprocess_statements(2021, 2025, "credit builder card", "summary", "rw")
+    preprocess_statements(2021, 2025, "credit builder card", "transactions", "wa")
+    df = preprocess_statements(2021, 2025, "credit builder secured", "summary", "rwa")
+    df = preprocess_statements(2021, 2025, "credit builder secured", "transactions", "rwa")
 
 
 if __name__ == '__main__':
