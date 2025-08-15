@@ -39,20 +39,20 @@ months = {"01": ['1', "01", "jan", "january"],
 
 
 def rename_columns(df, account, statement):
-    if (account.lower() == checking):
-        if (statement.lower() == transactions): 
+    if account.lower() == checking:
+        if statement.lower() == transactions: 
             df.columns = checking_transaction_column_names
-        elif (statement.lower() == summary):
+        elif statement.lower() == summary:
             df.columns = checking_summary_column_names
-    elif (account.lower() == credit_builder_card):
-        if (statement.lower() == transactions):
+    elif account.lower() == credit_builder_card:
+        if statement.lower() == transactions:
             df.columns = credit_builder_transaction_column_names
-        elif (statement.lower() == summary):
+        elif statement.lower() == summary:
             df.columns = credit_builder_summary_column_names
-    elif (account.lower() == credit_builder_secured):
-        if (statement.lower() == transactions):
+    elif account.lower() == credit_builder_secured:
+        if statement.lower() == transactions:
             df.columns = credit_builder_transaction_column_names
-        elif (statement.lower() == summary):
+        elif statement.lower() == summary:
             df.columns = credit_builder_secured_summary_column_names
     return df
 
@@ -76,26 +76,26 @@ def correct_tabula_data_extraction_errors(df):
     return df
 
 def format_data(df, account, statement):
-    if (statement.lower() == summary):
+    if statement.lower() == summary:
         for i in range(len(df.columns)):
-            if ((i == 0) or (i == 6 and account.lower() == credit_builder_card)):
+            if (i == 0) or (i == 6 and account.lower() == credit_builder_card):
                 df[df.columns[i]] = df[df.columns[i]].astype('string')
             else:
                 df[df.columns[i]] = pd.to_numeric(df[df.columns[i]].str.replace('$', '').str.replace(',','')).apply(lambda x: Decimal(f"{x:.2f}"))
-    if (statement.lower() == transactions):
+    if statement.lower() == transactions:
         df["Transaction Date"] = pd.to_datetime(df["Transaction Date"], format='%m/%d/%Y')
-        df["Description"] = df["Description"].astype('string')
-        df["Type"] = df["Type"].astype('string')
+        df["Description"] = df["Description"].astype("string")
+        df["Type"] = df["Type"].astype("string")
         df["Amount"] = pd.to_numeric(df["Amount"].str.replace('$', '', regex=False).str.replace(',', '')).apply(lambda x: Decimal(f"{x:.2f}"))
         df["Settlement Date"] = pd.to_datetime(df["Settlement Date"], format='%m/%d/%Y')
-        if (account.lower() == checking):
+        if account.lower() == checking:
             df["Net Amount"] = pd.to_numeric(df["Net Amount"].str.replace('$', '', regex=False).str.replace(',', '')).apply(lambda x: Decimal(f"{x:.2f}"))
     return df
 
 def save_file(df, directory, file):
     directory = directory.replace("raw", "processed")
     os.makedirs(directory, exist_ok=True)
-    if (file.startswith("tabula-")):
+    if file.startswith("tabula-"):
         file = file.replace("tabula-", '')
     csv_file = os.path.join(directory, file)
     df.to_csv(csv_file, index=False)
@@ -110,7 +110,7 @@ def save_combined_file(df, bank, account, statement):
     print(f"Combined CSV Output File: {csv_file}\n")
 
 def preprocess(csv_file, account, statement):
-    if (statement.lower() == summary):
+    if statement.lower() == summary:
         df = create_dataframe(csv_file)
     else:
         df = pd.read_csv(csv_file)
@@ -129,9 +129,9 @@ def preprocess_statement(year, month, account, statement, option):
             break
     print(f"Input File: {csv_file}\n")
     df = preprocess(csv_file, account, statement)
-    if (option.lower() == write or option.lower() == read_write):
+    if option.lower() == write or option.lower() == read_write:
         save_file(df, csv_directory, file)
-    if (option.lower() == read or option.lower() == read_write):
+    if option.lower() == read or option.lower() == read_write:
         return df
         
 def preprocess_statements(start_year, end_year, account, statement, option):
@@ -144,19 +144,18 @@ def preprocess_statements(start_year, end_year, account, statement, option):
             csv_file = os.path.join(csv_directory, file)
             print(f"CSV Input File: {csv_file}")
             df = preprocess(csv_file, account, statement)
-            if (option.lower() == write_all or option.lower() == read_write_all):
+            if option.lower() == write_all or option.lower() == read_write_all:
                 save_file(df, csv_directory, file)
             dataframes.append(df)
     df = pd.concat(dataframes, ignore_index=True)
-    if (option.lower() == write or option.lower() == read_write or option.lower() == write_all or option.lower() == read_write_all):
+    if option.lower() == write or option.lower() == read_write or option.lower() == write_all or option.lower() == read_write_all:
         save_combined_file(df, bank, account, statement)
-    if (option.lower() == read or option.lower() == read_write or option.lower() == read_write_all):
+    if option.lower() == read or option.lower() == read_write or option.lower() == read_write_all:
         print()
         return df
 
 
 def main():
-
     df = preprocess_statement(2024, "september", "checking", "summary", 'r')
     preprocess_statement(2024, "sept", "checking", "transactions", 'w')
     df = preprocess_statement(2024, "sep", "credit builder card", "summary", "rw")
